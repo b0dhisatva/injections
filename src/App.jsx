@@ -30,6 +30,9 @@ const injectionSelect = `
 export default function App() {
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+  const [passwordRecovery, setPasswordRecovery] = useState(
+    () => window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'),
+  )
   const [view, setView] = useState('overview')
   const [compounds, setCompounds] = useState([])
   const [injections, setInjections] = useState([])
@@ -45,9 +48,10 @@ export default function App() {
       setSession(data.session)
       setAuthReady(true)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession)
       setAuthReady(true)
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       if (!nextSession) { setCompounds([]); setInjections([]) }
     })
     return () => subscription.unsubscribe()
@@ -140,6 +144,7 @@ export default function App() {
 
   if (!isSupabaseConfigured) return <SetupPanel />
   if (!authReady) return <div className="full-loader"><LoaderCircle size={28} className="spin" /><span>Opening SiteTrack…</span></div>
+  if (passwordRecovery) return <AuthPanel passwordRecovery onPasswordUpdated={() => { setPasswordRecovery(false); setToast('Password updated') }} />
   if (!session) return <AuthPanel />
 
   const content = loading && !injections.length && !compounds.length

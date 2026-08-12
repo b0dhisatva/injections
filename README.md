@@ -6,7 +6,7 @@ It records what the user enters. It does **not** recommend compounds, quantities
 
 ## Included
 
-- Passwordless email sign-in
+- Email-and-password sign-in, account creation, and password recovery
 - Per-user data isolation with Supabase Row Level Security (RLS)
 - Compound library with a default unit and color
 - Multi-compound injection entries with a quantity and unit for each compound
@@ -27,9 +27,9 @@ It records what the user enters. It does **not** recommend compounds, quantities
 
 Never use a secret key or legacy `service_role` key in this app.
 
-## 2. Configure sign-in redirects
+## 2. Configure authentication
 
-SiteTrack uses secure, passwordless email links.
+SiteTrack uses email addresses as account identifiers and passwords for normal sign-in. Password recovery and optional new-account confirmation use secure email links.
 
 In Supabase, open **Authentication → URL Configuration**:
 
@@ -67,7 +67,7 @@ GitHub Free requires a public repository for GitHub Pages. The source code will 
 5. Open **Settings → Pages** and choose **GitHub Actions** as the source.
 6. Open **Actions** and confirm the “Deploy SiteTrack to GitHub Pages” workflow succeeds.
 
-The published URL will be `https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/`. Add it to the Supabase redirect configuration described above before requesting a sign-in link.
+The published URL will be `https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/`. Add it to the Supabase redirect configuration described above so password-recovery and account-confirmation links can return to the app.
 
 ## Data model and privacy
 
