@@ -15,8 +15,8 @@ export const SITES = [
   { key: 'right_glute', label: 'Right glute', short: 'R glute', group: 'Glute' },
   { key: 'left_thigh', label: 'Left thigh', short: 'L thigh', group: 'Thigh' },
   { key: 'right_thigh', label: 'Right thigh', short: 'R thigh', group: 'Thigh' },
-  { key: 'left_abdomen', label: 'Left abdomen', short: 'L abdomen', group: 'Abdomen' },
-  { key: 'right_abdomen', label: 'Right abdomen', short: 'R abdomen', group: 'Abdomen' },
+  { key: 'left_abdomen', label: 'Left Lat', short: 'L Lat', group: 'Lat' },
+  { key: 'right_abdomen', label: 'Right Lat', short: 'R Lat', group: 'Lat' },
   { key: 'other', label: 'Other site', short: 'Other', group: 'Other' },
 ]
 
