@@ -17,10 +17,12 @@ export function formatShortDate(value) {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value))
 }
 
-export function relativeDays(value) {
+export function relativeDays(value, now = new Date()) {
   if (!value) return null
-  const elapsed = Date.now() - new Date(value).getTime()
-  return Math.max(0, Math.floor(elapsed / 86_400_000))
+  // Compare local calendar dates, not elapsed hours. DST days can be 23 or 25 hours.
+  const calendarDay = (date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  const elapsed = calendarDay(new Date(now)) - calendarDay(new Date(value))
+  return Number.isFinite(elapsed) ? Math.max(0, Math.round(elapsed / 86_400_000)) : null
 }
 
 export function formatAmount(value) {

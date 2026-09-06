@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, MapPin, Plus, RotateCw, Syringe } from 'lucide-react'
 import { SITES, siteLabel } from '../lib/constants.js'
 import { formatShortDate, relativeDays } from '../lib/format.js'
@@ -12,8 +13,20 @@ function rotationStatus(days) {
 }
 
 export default function Dashboard({ injections, compounds, onNavigate }) {
-  const sevenDaysAgo = Date.now() - 7 * 86_400_000
-  const monthAgo = Date.now() - 30 * 86_400_000
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const refreshClock = () => setNow(Date.now())
+    const timer = window.setInterval(refreshClock, 30_000)
+    window.addEventListener('focus', refreshClock)
+    document.addEventListener('visibilitychange', refreshClock)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshClock)
+      document.removeEventListener('visibilitychange', refreshClock)
+    }
+  }, [])
+  const sevenDaysAgo = now - 7 * 86_400_000
+  const monthAgo = now - 30 * 86_400_000
   const recentCount = injections.filter((entry) => new Date(entry.injected_at).getTime() >= sevenDaysAgo).length
   const activeCompounds = new Set(
     injections
@@ -25,7 +38,7 @@ export default function Dashboard({ injections, compounds, onNavigate }) {
   const siteUsage = SITES.filter((site) => site.key !== 'other').map((site) => {
     const uses = injections.filter((entry) => entry.site === site.key)
     const lastUsed = uses[0]?.injected_at ?? null
-    return { ...site, lastUsed, days: relativeDays(lastUsed), count: uses.filter((entry) => new Date(entry.injected_at).getTime() >= monthAgo).length }
+    return { ...site, lastUsed, days: relativeDays(lastUsed, now), count: uses.filter((entry) => new Date(entry.injected_at).getTime() >= monthAgo).length }
   }).sort((a, b) => (b.days ?? 99999) - (a.days ?? 99999))
 
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'
