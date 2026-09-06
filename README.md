@@ -81,6 +81,20 @@ RLS is enabled on every exposed table. Policies check `auth.uid()` against the o
 
 ## Verification
 
+### Upgrade existing installations
+
+Before deploying the reliable-save client, run [`supabase/save_injection.sql`](./supabase/save_injection.sql)
+in the Supabase SQL Editor. New installations include this function in `schema.sql`.
+It saves an injection and all doses in one transaction, retaining the existing RLS policies.
+Retries of an identical request return the saved entry without duplicating it.
+The upgrade does not change or reconstruct historical records.
+
+The form refreshes its default local date when resumed, until the date is manually edited
+or a save is attempted. A failed or unconfirmed save keeps the form available to retry with
+the same request ID. A confirmed save opens history and displays the saved date.
+
+### Checks
+
 ```bash
 pnpm test
 pnpm build

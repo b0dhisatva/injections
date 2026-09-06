@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Beaker, CalendarClock, Check, MapPin, Plus, Trash2 } from 'lucide-react'
 import { ROUTES, SITES, UNITS } from '../lib/constants.js'
-import { toLocalDateTimeInput } from '../lib/format.js'
+import { formatDateTime, toLocalDateTimeInput } from '../lib/format.js'
 
 function emptyDose(compounds) {
   const compound = compounds.find((item) => item.active)
@@ -10,13 +10,30 @@ function emptyDose(compounds) {
 
 export default function InjectionForm({ compounds, onSave, onCancel, onAddCompound }) {
   const activeCompounds = useMemo(() => compounds.filter((item) => item.active), [compounds])
-  const [injectedAt, setInjectedAt] = useState(toLocalDateTimeInput())
+  const [injectedAt, setInjectedAt] = useState(toLocalDateTimeInput)
+  const [dateEdited, setDateEdited] = useState(false)
+  const requestId = useRef(null)
+  const submitting = useRef(false)
   const [route, setRoute] = useState('intramuscular')
   const [site, setSite] = useState('')
   const [notes, setNotes] = useState('')
   const [doses, setDoses] = useState([emptyDose(compounds)])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const refreshDate = () => {
+      if (!dateEdited && !submitting.current && !requestId.current) setInjectedAt(toLocalDateTimeInput())
+    }
+    const timer = window.setInterval(refreshDate, 30_000)
+    window.addEventListener('focus', refreshDate)
+    document.addEventListener('visibilitychange', refreshDate)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshDate)
+      document.removeEventListener('visibilitychange', refreshDate)
+    }
+  }, [dateEdited])
 
   function updateDose(index, field, value) {
     setDoses((current) => current.map((dose, doseIndex) => {
@@ -31,13 +48,25 @@ export default function InjectionForm({ compounds, onSave, onCancel, onAddCompou
 
   async function handleSubmit(event) {
     event.preventDefault()
+    if (submitting.current) return
     setError('')
     if (!site) return setError('Choose an injection site.')
     if (!doses.length || doses.some((dose) => !dose.compound_id || !dose.amount || Number(dose.amount) <= 0)) return setError('Choose a compound and enter a quantity greater than zero for every row.')
     if (new Set(doses.map((dose) => dose.compound_id)).size !== doses.length) return setError('Each compound can appear only once in an injection. Combine duplicate quantities into one row.')
+    const date = new Date(injectedAt)
+    if (!Number.isFinite(date.getTime()) || toLocalDateTimeInput(date) !== injectedAt) return setError('Choose a valid local date and time.')
+    submitting.current = true
     setBusy(true)
-    const result = await onSave({ injected_at: new Date(injectedAt).toISOString(), route, site, notes: notes.trim() || null, doses: doses.map((dose) => ({ ...dose, amount: Number(dose.amount) })) })
-    if (result?.error) { setError(result.error); setBusy(false) }
+    try {
+      requestId.current ??= crypto.randomUUID()
+      const result = await onSave({ id: requestId.current, injected_at: date.toISOString(), route, site, notes: notes.trim() || null, doses: doses.map((dose) => ({ ...dose, amount: Number(dose.amount) })) })
+      if (result?.error) setError(result.error)
+    } catch {
+      setError('The save could not be confirmed. Check your connection and retry this entry.')
+    } finally {
+      submitting.current = false
+      setBusy(false)
+    }
   }
 
   return (
@@ -47,9 +76,10 @@ export default function InjectionForm({ compounds, onSave, onCancel, onAddCompou
         <section className="panel form-section">
           <div className="form-section-title"><span><CalendarClock size={18} /></span><div><h2>When & route</h2><p>Use the actual date and time if adding this later.</p></div></div>
           <div className="field-grid two">
-            <label>Date and time<input type="datetime-local" value={injectedAt} onChange={(e) => setInjectedAt(e.target.value)} required /></label>
+            <label>Date and time<input type="datetime-local" value={injectedAt} onChange={(e) => { setDateEdited(true); setInjectedAt(e.target.value) }} required disabled={busy} /></label>
             <label>Route<select value={route} onChange={(e) => setRoute(e.target.value)}>{ROUTES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </div>
+          <p>{injectedAt && Number.isFinite(new Date(injectedAt).getTime()) ? `Entry date: ${formatDateTime(injectedAt)} (your device’s local time)` : 'Choose the date and time of the injection.'}</p>
         </section>
         <section className="panel form-section">
           <div className="form-section-title"><span><MapPin size={18} /></span><div><h2>Injection site</h2><p>Select the exact side used.</p></div></div>
