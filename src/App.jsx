@@ -10,6 +10,8 @@ import HistoryView from './components/HistoryView.jsx'
 import CompoundsView from './components/CompoundsView.jsx'
 import ConfirmDialog from './components/ConfirmDialog.jsx'
 import Toast from './components/Toast.jsx'
+import { persistInjection } from './lib/saveInjection.js'
+import { formatDateTime } from './lib/format.js'
 
 const injectionSelect = `
   id,
@@ -61,17 +63,22 @@ export default function App() {
     if (!session?.user) return
     setLoading(true)
     setLoadError('')
-    const [compoundResult, injectionResult] = await Promise.all([
-      supabase.from('compounds').select('id, name, default_unit, color, active, created_at').order('active', { ascending: false }).order('name'),
-      supabase.from('injections').select(injectionSelect).order('injected_at', { ascending: false }),
-    ])
-    const error = compoundResult.error || injectionResult.error
-    if (error) setLoadError(`${error.message} Check that the Supabase schema has been installed.`)
-    else {
-      setCompounds(compoundResult.data ?? [])
-      setInjections(injectionResult.data ?? [])
+    try {
+      const [compoundResult, injectionResult] = await Promise.all([
+        supabase.from('compounds').select('id, name, default_unit, color, active, created_at').order('active', { ascending: false }).order('name'),
+        supabase.from('injections').select(injectionSelect).order('injected_at', { ascending: false }).order('created_at', { ascending: false }).order('id'),
+      ])
+      const error = compoundResult.error || injectionResult.error
+      if (error) setLoadError(`Could not refresh your records: ${error.message}`)
+      else {
+        setCompounds(compoundResult.data ?? [])
+        setInjections(injectionResult.data ?? [])
+      }
+    } catch {
+      setLoadError('Could not refresh your records. Check your connection and try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [session])
 
   useEffect(() => { loadData() }, [loadData])
@@ -98,30 +105,12 @@ export default function App() {
   }
 
   async function saveInjection(values) {
-    const { data: injection, error: injectionError } = await supabase.from('injections').insert({
-      user_id: session.user.id,
-      injected_at: values.injected_at,
-      route: values.route,
-      site: values.site,
-      notes: values.notes,
-    }).select('id').single()
-    if (injectionError) return { error: injectionError.message }
-
-    const { error: itemError } = await supabase.from('injection_items').insert(values.doses.map((dose) => ({
-      injection_id: injection.id,
-      compound_id: dose.compound_id,
-      amount: dose.amount,
-      unit: dose.unit,
-    })))
-
-    if (itemError) {
-      await supabase.from('injections').delete().eq('id', injection.id)
-      return { error: itemError.message }
-    }
-    await loadData()
-    setToast('Injection logged')
-    setView('overview')
-    return { data: injection }
+    const result = await persistInjection(supabase, values)
+    if (result.error) return result
+    setToast(`Saved for ${formatDateTime(values.injected_at)}`)
+    setView('history')
+    void loadData()
+    return result
   }
 
   async function deleteInjection() {
